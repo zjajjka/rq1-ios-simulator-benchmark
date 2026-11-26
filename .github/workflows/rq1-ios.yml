@@ -33,12 +33,37 @@ jobs:
           xcrun simctl install "$device" "$app"
           xcrun simctl launch "$device" "$bundle" | tee "$evidence/launch.txt"
           xcrun simctl io "$device" screenshot "$evidence/launch.png"
+          cat > MSTG-JWTUITests/MSTG_JWTUITests.swift <<'SWIFT'
+          import XCTest
+
+          final class MSTG_JWTUITests: XCTestCase {
+            func testLoginScreenEntryPoints() {
+              let app = XCUIApplication()
+              app.launch()
+              let username = app.textFields["Username"]
+              let password = app.secureTextFields["Password"]
+              XCTAssertTrue(username.waitForExistence(timeout: 10))
+              XCTAssertTrue(password.isHittable)
+              XCTAssertTrue(app.buttons["Login"].isHittable)
+              XCTAssertTrue(app.buttons["Register"].isHittable)
+              username.tap()
+              username.typeText("rq1-local-check")
+              XCTAssertEqual(username.value as? String, "rq1-local-check")
+              let observed = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+              observed.name = "RQ1-iOS-login-screen"
+              observed.lifetime = .keepAlways
+              add(observed)
+            }
+          }
+          SWIFT
+          xcodebuild -workspace MSTG-JWT.xcworkspace -scheme MSTG-JWT -configuration Debug -destination "platform=iOS Simulator,id=$device" -parallel-testing-enabled NO -derivedDataPath "$RUNNER_TEMP/rq1-build" -resultBundlePath "$evidence/ui-tests.xcresult" -only-testing:MSTG-JWTUITests/MSTG_JWTUITests/testLoginScreenEntryPoints CODE_SIGNING_ALLOWED=NO IPHONEOS_DEPLOYMENT_TARGET=15.0 SWIFT_VERSION=5.0 test 2>&1 | tee "$evidence/ui-tests.log"
       - name: Save evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: rq1-ios-evidence
           path: ${{ runner.temp }}/rq1-evidence
+
 
 
 
