@@ -21,6 +21,7 @@ jobs:
           device=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1]))["devices"]; print(next(e["udid"] for k in sorted(d,reverse=True) for e in d[k] if "iPhone" in e["name"]))' "$evidence/devices.json")
           # Modern Swift requires public visibility for implicitly final declarations.
           find Pods/Alamofire -name '*.swift' -exec perl -pi -e 's/\bopen(?=\s+(?:let|static)\b)/public/g' {} +
+          perl -pi -e 's/as CFString!/as CFString?/g' Pods/Alamofire/Source/ResponseSerialization.swift
           git diff -- Pods/Alamofire > "$evidence/compatibility.patch"
           xcodebuild -workspace MSTG-JWT.xcworkspace -scheme MSTG-JWT -configuration Debug -sdk iphonesimulator -destination "generic/platform=iOS Simulator" -derivedDataPath "$RUNNER_TEMP/rq1-build" CODE_SIGNING_ALLOWED=NO IPHONEOS_DEPLOYMENT_TARGET=15.0 SWIFT_VERSION=5.0 build 2>&1 | tee "$evidence/build.log"
           xcrun simctl boot "$device"
@@ -36,5 +37,6 @@ jobs:
         with:
           name: rq1-ios-evidence
           path: ${{ runner.temp }}/rq1-evidence
+
 
 
