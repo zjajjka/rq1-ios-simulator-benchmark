@@ -24,6 +24,7 @@ jobs:
           perl -pi -e 's/as CFString!/as CFString?/g' Pods/Alamofire/Source/ResponseSerialization.swift
           perl -pi -e 's/\bUIApplicationLaunchOptionsKey\b/UIApplication.LaunchOptionsKey/g' MSTG-JWT/AppDelegate.swift
           git diff -- Pods/Alamofire MSTG-JWT/AppDelegate.swift > "$evidence/compatibility.patch"
+          export EXPANDED_CODE_SIGN_IDENTITY=""
           xcodebuild -workspace MSTG-JWT.xcworkspace -scheme MSTG-JWT -configuration Debug -sdk iphonesimulator -destination "generic/platform=iOS Simulator" -derivedDataPath "$RUNNER_TEMP/rq1-build" CODE_SIGNING_ALLOWED=NO IPHONEOS_DEPLOYMENT_TARGET=15.0 SWIFT_VERSION=5.0 build 2>&1 | tee "$evidence/build.log"
           xcrun simctl boot "$device"
           xcrun simctl bootstatus "$device" -b
@@ -38,6 +39,7 @@ jobs:
         with:
           name: rq1-ios-evidence
           path: ${{ runner.temp }}/rq1-evidence
+
 
 
 
