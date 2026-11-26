@@ -1,0 +1,36 @@
+name: RQ1 iOS simulator launch
+on: [push, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  launch:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - name: Build and launch the public OWASP sample
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/rq1-evidence"
+          evidence="$RUNNER_TEMP/rq1-evidence"
+          git clone --depth 1 --branch 1.0 https://github.com/OWASP/MASTG-Hacking-Playground.git sample
+          git -C sample rev-parse HEAD | tee "$evidence/source-commit.txt"
+          cd sample/iOS/MSTG-JWT
+          xcodebuild -version | tee "$evidence/xcode.txt"
+          xcrun simctl list devices available -j > "$evidence/devices.json"
+          device=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1]))["devices"]; print(next(e["udid"] for k in sorted(d,reverse=True) for e in d[k] if "iPhone" in e["name"]))' "$evidence/devices.json")
+          xcodebuild -workspace MSTG-JWT.xcworkspace -scheme MSTG-JWT -configuration Debug -sdk iphonesimulator -destination "generic/platform=iOS Simulator" -derivedDataPath "$RUNNER_TEMP/rq1-build" CODE_SIGNING_ALLOWED=NO IPHONEOS_DEPLOYMENT_TARGET=15.0 SWIFT_VERSION=5.0 build 2>&1 | tee "$evidence/build.log"
+          xcrun simctl boot "$device"
+          xcrun simctl bootstatus "$device" -b
+          app="$RUNNER_TEMP/rq1-build/Build/Products/Debug-iphonesimulator/MSTG-JWT.app"
+          bundle=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")
+          xcrun simctl install "$device" "$app"
+          xcrun simctl launch "$device" "$bundle" | tee "$evidence/launch.txt"
+          xcrun simctl io "$device" screenshot "$evidence/launch.png"
+      - name: Save evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rq1-ios-evidence
+          path: ${{ runner.temp }}/rq1-evidence
+
