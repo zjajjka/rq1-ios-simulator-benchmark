@@ -18,7 +18,7 @@ jobs:
           cd sample/iOS/MSTG-JWT
           xcodebuild -version | tee "$evidence/xcode.txt"
           xcrun simctl list devices available -j > "$evidence/devices.json"
-          device=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1]))["devices"]; print(next(e["udid"] for k in sorted(d,reverse=True) for e in d[k] if "iPhone" in e["name"]))' "$evidence/devices.json")
+          device=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1]))["devices"]; print(next(e["udid"] for k in sorted(d,reverse=True) if k.endswith("iOS-18-5") for e in d[k] if "iPhone" in e["name"]))' "$evidence/devices.json")
           # Modern Swift requires public visibility for implicitly final declarations.
           find Pods/Alamofire -name '*.swift' -exec perl -pi -e 's/\bopen(?=\s+(?:let|static)\b)/public/g' {} +
           perl -pi -e 's/as CFString!/as CFString?/g' Pods/Alamofire/Source/ResponseSerialization.swift
@@ -27,7 +27,7 @@ jobs:
           export EXPANDED_CODE_SIGN_IDENTITY=""
           xcodebuild -workspace MSTG-JWT.xcworkspace -scheme MSTG-JWT -configuration Debug -sdk iphonesimulator -destination "generic/platform=iOS Simulator" -derivedDataPath "$RUNNER_TEMP/rq1-build" CODE_SIGNING_ALLOWED=NO IPHONEOS_DEPLOYMENT_TARGET=15.0 SWIFT_VERSION=5.0 build 2>&1 | tee "$evidence/build.log"
           xcrun simctl boot "$device"
-          xcrun simctl bootstatus "$device" -b
+          python3 -c 'import subprocess,sys; subprocess.run(["xcrun","simctl","bootstatus",sys.argv[1],"-b"],check=True,timeout=240)' "$device"
           app="$RUNNER_TEMP/rq1-build/Build/Products/Debug-iphonesimulator/MSTG-JWT.app"
           bundle=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")
           xcrun simctl install "$device" "$app"
@@ -39,6 +39,7 @@ jobs:
         with:
           name: rq1-ios-evidence
           path: ${{ runner.temp }}/rq1-evidence
+
 
 
 
